@@ -21,6 +21,9 @@ from project_starter import (
     get_supplier_delivery_date,
     search_quote_history
 )
+import os
+from openai import OpenAI
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -65,17 +68,50 @@ except Exception as e:
 
 # Create a simple model for our agents
 class SimpleModel(Model):
+    def __init__(self):
+        self.client = OpenAI(
+            base_url="https://openai.vocareum.com/v1",
+            api_key="voc-21376185381266773654634673458a21cca09.30251877"
+        )
+        self.model = "gpt-4-turbo-preview"
+
     async def generate(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
-        # In a real implementation, this would call an actual LLM API
-        # For now, we'll simulate a more realistic response
-        last_message = messages[-1]["content"]
-        if "inventory" in last_message.lower():
-            return {"role": "assistant", "content": "Inventory levels checked. Paper: 500, Ink: 200"}
-        elif "quote" in last_message.lower():
-            return {"role": "assistant", "content": "Quote generated with appropriate discounts"}
-        elif "sale" in last_message.lower():
-            return {"role": "assistant", "content": "Sale processed successfully"}
-        return {"role": "assistant", "content": "Task completed"}
+        try:
+            # Convert messages to OpenAI format
+            openai_messages = [
+                {"role": msg.get("role", "user"), "content": msg.get("content", "")}
+                for msg in messages
+            ]
+
+            # Add system message for context
+            system_message = {
+                "role": "system",
+                "content": """You are an AI assistant for a paper supply company. 
+                You help with inventory management, quoting, and sales processing.
+                Be concise and professional in your responses."""
+            }
+            openai_messages.insert(0, system_message)
+
+            # Call OpenAI API
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=openai_messages,
+                temperature=0.7,
+                max_tokens=150
+            )
+
+            # Extract and return the response
+            return {
+                "role": "assistant",
+                "content": response.choices[0].message.content
+            }
+
+        except Exception as e:
+            logger.error(f"Error calling OpenAI API: {str(e)}", exc_info=True)
+            return {
+                "role": "assistant",
+                "content": f"I apologize, but I encountered an error: {str(e)}"
+            }
 
 class InventoryTool(Tool):
     """Tool for inventory management operations"""
@@ -274,9 +310,124 @@ class QuotingTool(Tool):
             # Search quote history for similar quotes
             try:
                 quote_history = search_quote_history([item], limit=5)
+                logger.info(f"Raw quote history type: {type(quote_history)}")
+                logger.info(f"Raw quote history length: {len(quote_history) if isinstance(quote_history, (list, tuple)) else 'N/A'}")
+                if isinstance(quote_history, (list, tuple)) and quote_history:
+                    logger.info(f"First quote entry type: {type(quote_history[0])}")
+                    logger.info(f"First quote entry: {quote_history[0]}")
+                    if hasattr(quote_history[0], '__dict__'):
+                        logger.info(f"First quote entry __dict__: {quote_history[0].__dict__}")
+                    if hasattr(quote_history[0], '_asdict'):
+                        logger.info(f"First quote entry _asdict: {quote_history[0]._asdict()}")
+                    if hasattr(quote_history[0], '_mapping'):
+                        logger.info(f"First quote entry _mapping: {quote_history[0]._mapping}")
+                    if hasattr(quote_history[0], '__iter__'):
+                        logger.info(f"First quote entry as list: {list(quote_history[0])}")
+                
+                # Extra debug logging before formatting loop
+                logger.info(f"quote_history type: {type(quote_history)}; length: {len(quote_history) if hasattr(quote_history, '__len__') else 'N/A'}")
+                print(f"quote_history type: {type(quote_history)}; length: {len(quote_history) if hasattr(quote_history, '__len__') else 'N/A'}")
+                for idx, q in enumerate(quote_history):
+                    logger.info(f"quote_history[{idx}] type: {type(q)}; length: {len(q) if hasattr(q, '__len__') and not isinstance(q, str) else 'N/A'}; value: {str(q)[:200]}")
+                    print(f"quote_history[{idx}] type: {type(q)}; length: {len(q) if hasattr(q, '__len__') and not isinstance(q, str) else 'N/A'}; value: {str(q)[:200]}")
+                
+                formatted_history = []
+                
+                # Handle case where quote_history is a string
+                if isinstance(quote_history, str):
+                    try:
+                        quote_history = json.loads(quote_history)
+                    except json.JSONDecodeError:
+                        logger.warning("Quote history is a string but not valid JSON")
+                        quote_history = []
+                
+                # Ensure quote_history is a list
+                if not isinstance(quote_history, list):
+                    quote_history = [quote_history] if quote_history else []
+                
+                # Format quote history according to the actual data structure
+                for quote in quote_history:
+                    try:
+                        logger.info(f"Processing quote entry type: {type(quote)}")
+                        logger.info(f"Quote entry: {quote}")
+                        
+                        # Handle different data formats
+                        if isinstance(quote, str):
+                            try:
+                                quote = json.loads(quote)
+                            except json.JSONDecodeError:
+                                logger.warning(f"Could not parse quote string as JSON: {quote}")
+                                continue
+                        
+                        # Convert SQLAlchemy Row to dict if needed
+                        if hasattr(quote, '_asdict'):
+                            quote = quote._asdict()
+                            logger.info(f"Converted using _asdict: {quote}")
+                        elif hasattr(quote, '_mapping'):
+                            quote = dict(quote._mapping)
+                            logger.info(f"Converted using _mapping: {quote}")
+                        elif hasattr(quote, '__dict__'):
+                            quote = quote.__dict__
+                            logger.info(f"Converted using __dict__: {quote}")
+                        elif not isinstance(quote, dict):
+                            try:
+                                # Try to convert to dict if it's a sequence
+                                if hasattr(quote, '__iter__') and not isinstance(quote, (str, bytes)):
+                                    # Get the keys from the first quote if available
+                                    keys = ['original_request', 'total_amount', 'quote_explanation', 
+                                           'job_type', 'order_size', 'event_type', 'order_date']
+                                    # If we have more values than keys, create a new dictionary with just the first 7 values
+                                    if len(quote) > len(keys):
+                                        # Try to get the values in the correct order
+                                        values = []
+                                        for key in keys:
+                                            if hasattr(quote, key):
+                                                values.append(getattr(quote, key))
+                                            else:
+                                                values.append(None)
+                                        # Create the dictionary one key-value pair at a time
+                                        quote = {}
+                                        for key, value in zip(keys, values):
+                                            quote[key] = value
+                                        logger.info(f"Converted sequence with extra values: {quote}")
+                                    else:
+                                        # If we have fewer values than keys, pad with None
+                                        values = list(quote)
+                                        while len(values) < len(keys):
+                                            values.append(None)
+                                        # Create the dictionary one key-value pair at a time
+                                        quote = {}
+                                        for key, value in zip(keys, values):
+                                            quote[key] = value
+                                        logger.info(f"Converted sequence with padded values: {quote}")
+                                else:
+                                    logger.warning(f"Could not convert quote to dict: {quote}")
+                                    continue
+                            except (TypeError, ValueError) as e:
+                                logger.warning(f"Error converting quote to dict: {str(e)}")
+                                continue
+                            
+                        # Ensure all required fields are present with default values
+                        formatted_quote = {
+                            "original_request": str(quote.get("original_request", "")),
+                            "total_amount": float(quote.get("total_amount", 0.0)),
+                            "quote_explanation": str(quote.get("quote_explanation", "")),
+                            "job_type": str(quote.get("job_type", "")),
+                            "order_size": str(quote.get("order_size", "")),
+                            "event_type": str(quote.get("event_type", "")),
+                            "order_date": str(quote.get("order_date", datetime.now().isoformat()))
+                        }
+                        formatted_history.append(formatted_quote)
+                    except Exception as e:
+                        logger.warning(f"Error formatting quote entry: {str(e)}")
+                        continue
+                
+                if not formatted_history:
+                    logger.info("No valid quote history found")
+                
             except Exception as e:
                 logger.warning(f"Could not retrieve quote history: {str(e)}")
-                quote_history = []
+                formatted_history = []
             
             result = {
                 "base_price": base_price,
@@ -285,7 +436,7 @@ class QuotingTool(Tool):
                 "final_price": final_price,
                 "status": "success",
                 "cash_balance": cash_balance,
-                "quote_history": quote_history
+                "quote_history": formatted_history
             }
             
             return result
@@ -407,154 +558,116 @@ class SalesTool(Tool):
 class InventoryAgent(MultiStepAgent):
     """Agent for inventory management"""
     def __init__(self):
-        # Create the inventory tool first
         self.inventory_tool = InventoryTool()
-        
-        # Initialize the parent class with the tool
         super().__init__(
             model=SimpleModel(),
             name="inventory_agent",
             description="Manages inventory levels and reordering",
-            tools=[self.inventory_tool]  # Pass the tool instance in a list
+            tools=[self.inventory_tool]
         )
-        self.db_engine = db_engine  # Use the global db_engine
+        self.db_engine = db_engine
 
     def initialize_system_prompt(self) -> str:
-        return """You are an inventory management agent. Your role is to check inventory levels and determine if reordering is needed."""
+        return """You are an inventory management agent for a paper supply company. Your role is to:
+        1. Analyze inventory levels and determine if reordering is needed
+        2. Consider factors like current stock, minimum stock levels, and delivery times
+        3. Make intelligent decisions about inventory management
+        4. Communicate effectively with other agents about inventory status
+        Be thorough in your analysis and provide detailed reasoning for your decisions."""
 
     async def process(self, message: Message) -> Dict[str, Any]:
         try:
-            # Extract content safely, handling nested dictionaries
-            if isinstance(message, dict) and 'content' in message:
-                content = message['content']
+            # Extract content safely
+            if isinstance(message, dict):
+                content = message
             else:
-                content = getattr(message, 'content', message)
+                content = getattr(message, 'content', {})
             
-            logger.info(f"Processing inventory check with content: {content}")
+            # Get inventory data
+            inventory_data = await self.inventory_tool.forward(item=content.get("item", "A4 paper"))
             
-            # Get a valid item from paper_supplies if not specified
-            if not content or not isinstance(content, dict) or 'item' not in content:
-                # Use the first item from paper_supplies as default
-                default_item = paper_supplies[0]["item_name"]
-                logger.info(f"No item specified, using default item: {default_item}")
-                item = default_item
-            else:
-                item = content.get("item")
-                # Verify item exists in paper_supplies
-                if not any(supply["item_name"].lower() == item.lower() for supply in paper_supplies):
-                    logger.error(f"Invalid item '{item}' specified")
-                    return {
-                        "status": "error",
-                        "error": f"Invalid item '{item}'. Please specify a valid item from the inventory.",
-                        "item": item
-                    }
+            # Create a detailed prompt for the LLM
+            analysis_prompt = f"""Analyze the following inventory data and provide recommendations:
+            Item: {inventory_data.get('item')}
+            Current Stock: {inventory_data.get('stock_level')}
+            Needs Restock: {inventory_data.get('needs_restock')}
+            Delivery Date: {inventory_data.get('delivery_date', 'N/A')}
             
-            logger.info(f"Checking inventory for item: {item}")
+            Please provide:
+            1. Analysis of the current situation
+            2. Recommendation for action
+            3. Reasoning for your decision
+            """
             
-            # Verify item exists in inventory table
-            try:
-                inventory_check = pd.read_sql(
-                    "SELECT item_name FROM inventory WHERE item_name = :item",
-                    self.db_engine,
-                    params={"item": item}
-                )
-                
-                if inventory_check.empty:
-                    logger.error(f"Item '{item}' not found in inventory table")
-                    return {
-                        "status": "error",
-                        "error": f"Item '{item}' not found in inventory table",
-                        "item": item
-                    }
-            except Exception as e:
-                logger.error(f"Error checking inventory table: {str(e)}", exc_info=True)
-                return {
-                    "status": "error",
-                    "error": f"Error checking inventory table: {str(e)}",
-                    "item": item
-                }
+            # Get LLM's analysis
+            analysis = await self.model.generate([{"role": "user", "content": analysis_prompt}])
             
-            # Call the tool with explicit keyword arguments
-            try:
-                # Use the instance variable directly
-                result = await self.inventory_tool.forward(item=item)
-                logger.info(f"Inventory check result: {result}")
-                
-                # Ensure we have a valid result
-                if not isinstance(result, dict):
-                    logger.error(f"Tool returned invalid result type: {type(result)}")
-                    return {
-                        "status": "error",
-                        "error": f"Invalid result type: {type(result)}",
-                        "item": item
-                    }
-                
-                # If the tool returned an error, propagate it
-                if result.get("status") == "error":
-                    return result
-                
-                # Ensure we have the required fields
-                if "stock_level" not in result:
-                    logger.error("Tool result missing 'stock_level' field")
-                    return {
-                        "status": "error",
-                        "error": "Missing required field: stock_level",
-                        "item": item
-                    }
-                
-                return result
-            except Exception as e:
-                logger.error(f"Error calling inventory tool: {str(e)}", exc_info=True)
-                return {
-                    "status": "error",
-                    "error": f"Tool error: {str(e)}",
-                    "item": item
-                }
-            
+            return {
+                "status": "success",
+                "inventory_data": inventory_data,
+                "analysis": analysis["content"],
+                "recommendation": analysis["content"]
+            }
         except Exception as e:
             logger.error(f"Error in inventory agent: {str(e)}", exc_info=True)
-            return {
-                "status": "error",
-                "error": f"Agent error: {str(e)}",
-                "item": item if 'item' in locals() else "unknown"
-            }
+            return {"status": "error", "error": str(e)}
 
 class QuotingAgent(MultiStepAgent):
     """Agent for price quoting"""
     def __init__(self):
-        # Create the quoting tool first
         self.quoting_tool = QuotingTool()
-        
-        # Initialize the parent class with the tool
         super().__init__(
             model=SimpleModel(),
             name="quoting_agent",
             description="Generates quotes based on inventory status",
-            tools=[self.quoting_tool]  # Pass the tool instance in a list
+            tools=[self.quoting_tool]
         )
 
     def initialize_system_prompt(self) -> str:
-        return """You are a quoting agent. Your role is to generate quotes based on inventory status and apply appropriate discounts."""
+        return """You are a quoting agent for a paper supply company. Your role is to:
+        1. Analyze customer requirements and inventory status
+        2. Consider market conditions and competitive pricing
+        3. Make intelligent decisions about pricing and discounts
+        4. Provide detailed quotes with clear reasoning
+        Be strategic in your pricing decisions and consider long-term customer relationships."""
 
     async def process(self, message: Message) -> Dict[str, Any]:
         try:
-            # Extract content safely, handling nested dictionaries
-            if isinstance(message, dict) and 'content' in message:
-                content = message['content']
+            # Extract content safely
+            if isinstance(message, dict):
+                content = message
             else:
-                content = getattr(message, 'content', message)
+                content = getattr(message, 'content', {})
             
-            logger.info(f"Processing quote with content: {content}")
+            # Get quote data
+            quote_data = await self.quoting_tool.forward(
+                item=content.get("item", "A4 paper"),
+                quantity=content.get("quantity", 100)
+            )
             
-            # Extract item and quantity from content if available, otherwise use defaults
-            item = content.get("item", "A4 paper")  # Use A4 paper as default
-            quantity = content.get("quantity", 100)
-            logger.info(f"Generating quote for {quantity} units of {item}")
+            # Create a detailed prompt for the LLM
+            quote_prompt = f"""Analyze the following quote request and provide a strategic recommendation:
+            Item: {content.get('item')}
+            Quantity: {content.get('quantity')}
+            Base Price: {quote_data.get('base_price')}
+            Current Discount: {quote_data.get('discount')}
+            Quote History: {quote_data.get('quote_history', [])}
             
-            # Use the instance variable directly
-            result = await self.quoting_tool.forward(item=item, quantity=quantity)
-            logger.info(f"Quote generation result: {result}")
-            return result
+            Please provide:
+            1. Analysis of the pricing situation
+            2. Recommendation for final price and discount
+            3. Strategic reasoning for your decision
+            """
+            
+            # Get LLM's analysis
+            analysis = await self.model.generate([{"role": "user", "content": quote_prompt}])
+            
+            return {
+                "status": "success",
+                "quote_data": quote_data,
+                "analysis": analysis["content"],
+                "final_quote": analysis["content"]
+            }
         except Exception as e:
             logger.error(f"Error in quoting agent: {str(e)}", exc_info=True)
             return {"status": "error", "error": str(e)}
@@ -562,42 +675,60 @@ class QuotingAgent(MultiStepAgent):
 class SalesAgent(MultiStepAgent):
     """Agent for sales processing"""
     def __init__(self):
-        # Create the sales tool first
         self.sales_tool = SalesTool()
-        
-        # Initialize the parent class with the tool
         super().__init__(
             model=SimpleModel(),
             name="sales_agent",
             description="Processes sales and calculates totals",
-            tools=[self.sales_tool]  # Pass the tool instance in a list
+            tools=[self.sales_tool]
         )
 
     def initialize_system_prompt(self) -> str:
-        return """You are a sales agent. Your role is to process sales orders and calculate the total price."""
+        return """You are a sales agent for a paper supply company. Your role is to:
+        1. Process sales orders efficiently and accurately
+        2. Consider customer history and preferences
+        3. Make intelligent decisions about order processing
+        4. Provide detailed order confirmations
+        Be customer-focused and ensure a smooth sales process."""
 
     async def process(self, message: Message) -> Dict[str, Any]:
         try:
-            # Extract content safely, handling nested dictionaries
-            if isinstance(message, dict) and 'content' in message:
-                content = message['content']
+            # Extract content safely
+            if isinstance(message, dict):
+                content = message
             else:
-                content = getattr(message, 'content', message)
+                content = getattr(message, 'content', {})
             
-            logger.info(f"Processing sale with content: {content}")
+            # Process the sale
+            order = {
+                "items": {
+                    content.get("item", "A4 paper"): content.get("quantity", 100)
+                }
+            }
+            sale_data = await self.sales_tool.forward(order=order)
             
-            # Extract order from content if available, otherwise use default
-            # Use the item and quantity from the quote
-            item = content.get("item", "A4 paper")
-            quantity = content.get("quantity", 100)
-            order = {item: quantity}  # Create order with the quoted item and quantity
+            # Create a detailed prompt for the LLM
+            sale_prompt = f"""Analyze the following sale and provide insights:
+            Order ID: {sale_data.get('order_id')}
+            Items: {order['items']}
+            Total Price: {sale_data.get('total_price')}
+            Financial Report: {sale_data.get('financial_report', {})}
             
-            logger.info(f"Processing order: {order}")
+            Please provide:
+            1. Analysis of the sale
+            2. Recommendations for follow-up
+            3. Insights for future sales
+            """
             
-            # Use the instance variable directly
-            result = await self.sales_tool.forward(order=order)
-            logger.info(f"Sale processing result: {result}")
-            return result
+            # Get LLM's analysis
+            analysis = await self.model.generate([{"role": "user", "content": sale_prompt}])
+            
+            return {
+                "status": "success",
+                "sale_data": sale_data,
+                "analysis": analysis["content"],
+                "recommendations": analysis["content"]
+            }
         except Exception as e:
             logger.error(f"Error in sales agent: {str(e)}", exc_info=True)
             return {"status": "error", "error": str(e)}
@@ -609,7 +740,7 @@ class SalesOrchestrator(MultiStepAgent):
             model=SimpleModel(),
             name="sales_orchestrator",
             description="Orchestrates the sales workflow",
-            tools=[]  # No tools needed for orchestrator
+            tools=[]
         )
         self.agents = [
             InventoryAgent(),
@@ -618,31 +749,77 @@ class SalesOrchestrator(MultiStepAgent):
         ]
 
     def initialize_system_prompt(self) -> str:
-        return """You are a sales workflow orchestrator. Your role is to coordinate the inventory check, quote generation, and sales processing steps."""
+        return """You are a sales workflow orchestrator for a paper supply company. Your role is to:
+        1. Coordinate between inventory, quoting, and sales agents
+        2. Make intelligent decisions about workflow management
+        3. Handle complex scenarios and edge cases
+        4. Ensure smooth communication between agents
+        Be strategic in your orchestration and maintain a holistic view of the process."""
 
     async def process(self, message: Message) -> Dict[str, Any]:
         try:
-            logger.info("Starting inventory check...")
-            # Step 1: Check inventory
-            inventory_result = await self.agents[0].process(message)
-            logger.info(f"Inventory check result: {inventory_result}")
+            # Extract content safely
+            if isinstance(message, dict):
+                content = message
+            else:
+                content = getattr(message, 'content', {})
+            
+            # Create a detailed prompt for the LLM about the overall workflow
+            workflow_prompt = f"""Analyze the following sales request and determine the best workflow:
+            Request: {content}
+            
+            Please provide:
+            1. Analysis of the request
+            2. Recommended workflow steps
+            3. Potential challenges and solutions
+            """
+            
+            # Get LLM's workflow analysis
+            workflow_analysis = await self.model.generate([{"role": "user", "content": workflow_prompt}])
+            
+            # Execute the workflow with LLM-guided orchestration
+            inventory_result = await self.agents[0].process(Message(content=content))
             if inventory_result.get("status") == "error":
-                logger.error(f"Inventory check failed: {inventory_result.get('error')}")
                 return inventory_result
 
-            logger.info("Generating quote...")
-            # Step 2: Generate quote
-            quote_result = await self.agents[1].process(Message(content=inventory_result, role="user"))
-            logger.info(f"Quote generation result: {quote_result}")
+            # Pass inventory analysis to quoting agent
+            quote_message = Message(content={
+                **content,
+                "inventory_analysis": inventory_result.get("analysis")
+            })
+            quote_result = await self.agents[1].process(quote_message)
             if quote_result.get("status") == "error":
-                logger.error(f"Quote generation failed: {quote_result.get('error')}")
                 return quote_result
 
-            logger.info("Processing sale...")
-            # Step 3: Process sale
-            sales_result = await self.agents[2].process(Message(content=quote_result, role="user"))
-            logger.info(f"Sale processing result: {sales_result}")
-            return sales_result
+            # Pass quote analysis to sales agent
+            sale_message = Message(content={
+                **content,
+                "quote_analysis": quote_result.get("analysis")
+            })
+            sales_result = await self.agents[2].process(sale_message)
+            
+            # Get final analysis from LLM
+            final_analysis_prompt = f"""Analyze the complete sales workflow results:
+            Inventory Analysis: {inventory_result.get('analysis')}
+            Quote Analysis: {quote_result.get('analysis')}
+            Sales Analysis: {sales_result.get('analysis')}
+            
+            Please provide:
+            1. Overall workflow analysis
+            2. Success metrics
+            3. Recommendations for improvement
+            """
+            
+            final_analysis = await self.model.generate([{"role": "user", "content": final_analysis_prompt}])
+            
+            return {
+                "status": "success",
+                "workflow_analysis": workflow_analysis["content"],
+                "inventory_result": inventory_result,
+                "quote_result": quote_result,
+                "sales_result": sales_result,
+                "final_analysis": final_analysis["content"]
+            }
 
         except Exception as e:
             logger.error(f"Orchestrator process failed: {str(e)}", exc_info=True)

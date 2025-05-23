@@ -578,7 +578,8 @@ def search_quote_history(search_terms: List[str], limit: int = 5) -> List[Dict]:
     # Execute parameterized query
     with db_engine.connect() as conn:
         result = conn.execute(text(query), params)
-        return [dict(row) for row in result]
+        # Convert each row to a dictionary using column names
+        return [dict(row._mapping) for row in result]
 
 ########################
 ########################
