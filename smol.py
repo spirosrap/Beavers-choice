@@ -16,7 +16,10 @@ from project_starter import (
     get_cash_balance,
     generate_financial_report,
     paper_supplies,
-    generate_sample_inventory
+    generate_sample_inventory,
+    get_all_inventory,
+    get_supplier_delivery_date,
+    search_quote_history
 )
 
 # Configure logging
@@ -100,64 +103,21 @@ class InventoryTool(Tool):
             if not item:
                 raise ValueError("Item name cannot be empty")
             
-            # First check if item exists in paper_supplies
-            item_exists = any(supply["item_name"].lower() == item.lower() for supply in paper_supplies)
-            if not item_exists:
-                logger.error(f"Item '{item}' not found in paper supplies")
+            # Get all inventory first
+            all_inventory = get_all_inventory(datetime.now().isoformat())
+            if item not in all_inventory:
+                logger.error(f"Item '{item}' not found in inventory")
                 return {
                     "stock_level": 0,
                     "needs_restock": True,
                     "status": "error",
-                    "error": f"Item '{item}' not found in paper supplies",
+                    "error": f"Item '{item}' not found in inventory",
                     "item": item
                 }
             
             # Get stock level from database
             try:
-                # First check if item exists in inventory table
-                inventory_check = pd.read_sql(
-                    "SELECT item_name FROM inventory WHERE item_name = :item",
-                    self.db_engine,
-                    params={"item": item}
-                )
-                
-                if inventory_check.empty:
-                    logger.error(f"Item '{item}' not found in inventory table")
-                    return {
-                        "stock_level": 0,
-                        "needs_restock": True,
-                        "status": "error",
-                        "error": f"Item '{item}' not found in inventory table",
-                        "item": item
-                    }
-                
-                # Get stock level from transactions
-                stock_query = """
-                    SELECT COALESCE(SUM(CASE
-                        WHEN transaction_type = 'stock_orders' THEN units
-                        WHEN transaction_type = 'sales' THEN -units
-                        ELSE 0
-                    END), 0) AS current_stock
-                    FROM transactions
-                    WHERE item_name = :item
-                """
-                
-                stock_info = pd.read_sql(
-                    stock_query,
-                    self.db_engine,
-                    params={"item": item}
-                )
-                
-                if stock_info.empty:
-                    logger.error(f"No stock information found for item '{item}'")
-                    return {
-                        "stock_level": 0,
-                        "needs_restock": True,
-                        "status": "error",
-                        "error": f"No stock information found for item '{item}'",
-                        "item": item
-                    }
-                
+                stock_info = get_stock_level(item, datetime.now().isoformat())
                 stock_level = int(stock_info["current_stock"].iloc[0])
                 logger.info(f"Current stock level for {item}: {stock_level}")
                 
@@ -196,6 +156,13 @@ class InventoryTool(Tool):
                     min_stock = int(inventory_info["min_stock_level"].iloc[0])
                 
                 needs_restock = stock_level < min_stock
+                
+                # If restock is needed, get supplier delivery date
+                if needs_restock:
+                    delivery_date = get_supplier_delivery_date(
+                        datetime.now().isoformat(),
+                        min_stock - stock_level
+                    )
             except Exception as e:
                 logger.error(f"Error getting minimum stock level: {str(e)}", exc_info=True)
                 return {
@@ -221,29 +188,16 @@ class InventoryTool(Tool):
                         params={"item": item}
                     )["unit_price"].iloc[0]
                     
-                    # Create transaction directly using SQL
-                    transaction_query = """
-                        INSERT INTO transactions (item_name, transaction_type, units, price, transaction_date)
-                        VALUES (:item_name, :transaction_type, :quantity, :price, :date)
-                    """
-                    with self.db_engine.connect() as conn:
-                        conn.execute(
-                            transaction_query,
-                            {
-                                "item_name": item,
-                                "transaction_type": "stock_orders",
-                                "quantity": quantity,
-                                "price": quantity * unit_price,
-                                "date": datetime.now().isoformat()
-                            }
-                        )
+                    create_transaction(
+                        item_name=item,
+                        transaction_type="stock_orders",
+                        quantity=quantity,
+                        price=quantity * unit_price,
+                        date=datetime.now().isoformat()
+                    )
                     
                     # Update stock level after transaction
-                    stock_info = pd.read_sql(
-                        stock_query,
-                        self.db_engine,
-                        params={"item": item}
-                    )
+                    stock_info = get_stock_level(item, datetime.now().isoformat())
                     stock_level = int(stock_info["current_stock"].iloc[0])
                     logger.info(f"Updated stock level for {item}: {stock_level}")
                 except Exception as e:
@@ -256,12 +210,19 @@ class InventoryTool(Tool):
                         "item": item
                     }
             
-            return {
+            result = {
                 "stock_level": stock_level,
                 "needs_restock": needs_restock,
                 "status": "success",
                 "item": item
             }
+            
+            # Add delivery date if restock is needed
+            if needs_restock:
+                result["delivery_date"] = delivery_date
+                
+            return result
+            
         except Exception as e:
             logger.error(f"Error in inventory tool: {str(e)}", exc_info=True)
             return {
@@ -305,13 +266,29 @@ class QuotingTool(Tool):
             discount = self.calculate_discount(quantity)
             final_price = base_price * quantity * (1 - discount)
             
-            return {
+            # Check cash balance for large orders
+            cash_balance = get_cash_balance(datetime.now().isoformat())
+            if final_price > cash_balance:
+                logger.warning(f"Order value (${final_price:.2f}) exceeds cash balance (${cash_balance:.2f})")
+            
+            # Search quote history for similar quotes
+            try:
+                quote_history = search_quote_history([item], limit=5)
+            except Exception as e:
+                logger.warning(f"Could not retrieve quote history: {str(e)}")
+                quote_history = []
+            
+            result = {
                 "base_price": base_price,
                 "quantity": quantity,
                 "discount": discount,
                 "final_price": final_price,
-                "status": "success"
+                "status": "success",
+                "cash_balance": cash_balance,
+                "quote_history": quote_history
             }
+            
+            return result
         except Exception as e:
             logger.error(f"Error in quoting tool: {str(e)}")
             return {
@@ -386,24 +363,13 @@ class SalesTool(Tool):
                 
                 # Create sales transaction
                 try:
-                    # Create transaction using SQLAlchemy text()
-                    transaction_query = text("""
-                        INSERT INTO transactions (item_name, transaction_type, units, price, transaction_date)
-                        VALUES (:item_name, :transaction_type, :quantity, :price, :date)
-                    """)
-                    
-                    with self.db_engine.connect() as conn:
-                        conn.execute(
-                            transaction_query,
-                            {
-                                "item_name": item_name,
-                                "transaction_type": "sales",
-                                "quantity": quantity,
-                                "price": item_total,
-                                "date": datetime.now().isoformat()
-                            }
-                        )
-                        conn.commit()  # Explicitly commit the transaction
+                    create_transaction(
+                        item_name=item_name,
+                        transaction_type="sales",
+                        quantity=quantity,
+                        price=item_total,
+                        date=datetime.now().isoformat()
+                    )
                 except Exception as e:
                     logger.error(f"Error creating transaction for {item_name}: {str(e)}", exc_info=True)
                     raise ValueError(f"Failed to create transaction for {item_name}: {str(e)}")
@@ -417,12 +383,16 @@ class SalesTool(Tool):
             
             order_id = f"ORD-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             
+            # Generate financial report after processing the sale
+            financial_report = generate_financial_report(datetime.now().isoformat())
+            
             return {
                 "order_id": order_id,
                 "status": "success",
                 "timestamp": datetime.now().isoformat(),
                 "total_price": total_price,
-                "order_details": order_details
+                "order_details": order_details,
+                "financial_report": financial_report
             }
         except Exception as e:
             logger.error(f"Error in sales tool: {str(e)}", exc_info=True)
