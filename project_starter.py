@@ -112,6 +112,11 @@ def generate_sample_inventory(paper_supplies: list, coverage: float = 0.4, seed:
     # Extract selected items from paper_supplies list
     selected_items = [paper_supplies[i] for i in selected_indices]
 
+    # Ensure 'A4 paper' is always included
+    a4_paper = next((item for item in paper_supplies if item["item_name"] == "A4 paper"), None)
+    if a4_paper and all(item["item_name"] != "A4 paper" for item in selected_items):
+        selected_items.append(a4_paper)
+
     # Construct inventory records
     inventory = []
     for item in selected_items:
@@ -132,7 +137,7 @@ def init_database(db_engine: Engine, seed: int = 137) -> Engine:
 
     This function performs the following tasks:
     - Creates the 'transactions' table for logging stock orders and sales
-    - Loads customer inquiries from 'quote_requests.csv' into a 'quote_requests' table
+    - Loads customer inquiries from 'quote_requests_sample.csv' into a 'quote_requests' table
     - Loads previous quotes from 'quotes.csv' into a 'quotes' table, extracting useful metadata
     - Generates a random subset of paper inventory using `generate_sample_inventory`
     - Inserts initial financial records including available cash and starting stock levels
@@ -149,16 +154,24 @@ def init_database(db_engine: Engine, seed: int = 137) -> Engine:
         Exception: If an error occurs during setup, the exception is printed and raised.
     """
     try:
+        # Drop existing tables if they exist
+        with db_engine.connect() as conn:
+            conn.execute(text("DROP TABLE IF EXISTS transactions"))
+            conn.execute(text("DROP TABLE IF EXISTS quote_requests"))
+            conn.execute(text("DROP TABLE IF EXISTS quotes"))
+            conn.execute(text("DROP TABLE IF EXISTS inventory"))
+            conn.commit()
+
         # ----------------------------
         # 1. Create an empty 'transactions' table schema
         # ----------------------------
         transactions_schema = pd.DataFrame({
-            "id": [],
-            "item_name": [],
-            "transaction_type": [],  # 'stock_orders' or 'sales'
-            "units": [],             # Quantity involved
-            "price": [],             # Total price for the transaction
-            "transaction_date": [],  # ISO-formatted date
+            "id": pd.Series(dtype="int64"),
+            "item_name": pd.Series(dtype="str"),
+            "transaction_type": pd.Series(dtype="str"),  # 'stock_orders' or 'sales'
+            "units": pd.Series(dtype="int64"),             # Quantity involved
+            "price": pd.Series(dtype="float64"),           # Total price for the transaction
+            "transaction_date": pd.Series(dtype="str"),    # ISO-formatted date
         })
         transactions_schema.to_sql("transactions", db_engine, if_exists="replace", index=False)
 
@@ -168,7 +181,7 @@ def init_database(db_engine: Engine, seed: int = 137) -> Engine:
         # ----------------------------
         # 2. Load and initialize 'quote_requests' table
         # ----------------------------
-        quote_requests_df = pd.read_csv("quote_requests.csv")
+        quote_requests_df = pd.read_csv("quote_requests_sample.csv")
         quote_requests_df["id"] = range(1, len(quote_requests_df) + 1)
         quote_requests_df.to_sql("quote_requests", db_engine, if_exists="replace", index=False)
 
@@ -181,9 +194,15 @@ def init_database(db_engine: Engine, seed: int = 137) -> Engine:
 
         # Unpack metadata fields (job_type, order_size, event_type) if present
         if "request_metadata" in quotes_df.columns:
-            quotes_df["request_metadata"] = quotes_df["request_metadata"].apply(
-                lambda x: ast.literal_eval(x) if isinstance(x, str) else x
-            )
+            def safe_parse_metadata(x):
+                try:
+                    if isinstance(x, str):
+                        return ast.literal_eval(x)
+                    return x
+                except (SyntaxError, ValueError):
+                    return {}
+            
+            quotes_df["request_metadata"] = quotes_df["request_metadata"].apply(safe_parse_metadata)
             quotes_df["job_type"] = quotes_df["request_metadata"].apply(lambda x: x.get("job_type", ""))
             quotes_df["order_size"] = quotes_df["request_metadata"].apply(lambda x: x.get("order_size", ""))
             quotes_df["event_type"] = quotes_df["request_metadata"].apply(lambda x: x.get("event_type", ""))
@@ -205,14 +224,38 @@ def init_database(db_engine: Engine, seed: int = 137) -> Engine:
         # ----------------------------
         inventory_df = generate_sample_inventory(paper_supplies, seed=seed)
 
+        # Ensure test items have enough stock
+        def ensure_stock(df, item_name, min_stock, unit_price, category):
+            if item_name in df["item_name"].values:
+                df.loc[df["item_name"] == item_name, "current_stock"] = max(df.loc[df["item_name"] == item_name, "current_stock"].iloc[0], min_stock)
+                df.loc[df["item_name"] == item_name, "min_stock_level"] = 50
+            else:
+                # Add the item if not present
+                df = pd.concat([
+                    df,
+                    pd.DataFrame([{
+                        "item_name": item_name,
+                        "category": category,
+                        "unit_price": unit_price,
+                        "current_stock": min_stock,
+                        "min_stock_level": 50
+                    }])
+                ], ignore_index=True)
+            return df
+
+        # Ensure A4 paper, Cardstock, and A3 paper are present with enough stock
+        inventory_df = ensure_stock(inventory_df, "A4 paper", 3000, 0.05, "paper")
+        inventory_df = ensure_stock(inventory_df, "Cardstock", 3000, 0.15, "paper")
+        inventory_df = ensure_stock(inventory_df, "A3 paper", 3000, 0.08, "paper")
+
         # Seed initial transactions
         initial_transactions = []
 
         # Add a starting cash balance via a dummy sales transaction
         initial_transactions.append({
-            "item_name": None,
+            "item_name": "initial_balance",
             "transaction_type": "sales",
-            "units": None,
+            "units": 1,
             "price": 50000.0,
             "transaction_date": initial_date,
         })
@@ -232,6 +275,17 @@ def init_database(db_engine: Engine, seed: int = 137) -> Engine:
 
         # Save the inventory reference table
         inventory_df.to_sql("inventory", db_engine, if_exists="replace", index=False)
+
+        # --- Ensure A4 paper has at least 5000 units after all other setup ---
+        # Check current stock for A4 paper
+        stock_result = get_stock_level("A4 paper", initial_date)
+        current_stock = int(stock_result["current_stock"].iloc[0]) if not stock_result.empty else 0
+        if current_stock < 5000:
+            # Add a stock order transaction to bring it up to 5000
+            additional = 5000 - current_stock
+            create_transaction(
+                "A4 paper", "stock_orders", additional, additional * 0.05, initial_date
+            )
 
         return db_engine
 
@@ -271,6 +325,12 @@ def create_transaction(
         # Validate transaction type
         if transaction_type not in {"stock_orders", "sales"}:
             raise ValueError("Transaction type must be 'stock_orders' or 'sales'")
+
+        # For sales transactions, check if we have enough stock
+        if transaction_type == "sales":
+            stock_result = get_stock_level(item_name, date_str)
+            if stock_result.empty or stock_result["current_stock"].iloc[0] < quantity:
+                raise ValueError(f"Insufficient stock for {item_name}. Available: {stock_result['current_stock'].iloc[0] if not stock_result.empty else 0}, Requested: {quantity}")
 
         # Prepare transaction record as a single-row DataFrame
         transaction = pd.DataFrame([{
@@ -543,25 +603,9 @@ def search_quote_history(search_terms: List[str], limit: int = 5) -> List[Dict]:
             - event_type
             - order_date
     """
-    conditions = []
-    params = {}
-
-    # Build SQL WHERE clause using LIKE filters for each search term
-    for i, term in enumerate(search_terms):
-        param_name = f"term_{i}"
-        conditions.append(
-            f"(LOWER(qr.response) LIKE :{param_name} OR "
-            f"LOWER(q.quote_explanation) LIKE :{param_name})"
-        )
-        params[param_name] = f"%{term.lower()}%"
-
-    # Combine conditions; fallback to always-true if no terms provided
-    where_clause = " AND ".join(conditions) if conditions else "1=1"
-
-    # Final SQL query to join quotes with quote_requests
-    query = f"""
+    query = """
         SELECT
-            qr.response AS original_request,
+            qr.request AS original_request,
             q.total_amount,
             q.quote_explanation,
             q.job_type,
@@ -570,15 +614,34 @@ def search_quote_history(search_terms: List[str], limit: int = 5) -> List[Dict]:
             q.order_date
         FROM quotes q
         JOIN quote_requests qr ON q.request_id = qr.id
-        WHERE {where_clause}
+        WHERE (LOWER(qr.request) LIKE :term1 OR LOWER(q.quote_explanation) LIKE :term1)
+        AND (LOWER(qr.request) LIKE :term2 OR LOWER(q.quote_explanation) LIKE :term2)
         ORDER BY q.order_date DESC
-        LIMIT {limit}
+        LIMIT :limit
     """
-
-    # Execute parameterized query
+    
+    # Create a dictionary of parameters for SQLAlchemy
+    params = {
+        "term1": f"%{search_terms[0]}%",
+        "term2": f"%{search_terms[1]}%",
+        "limit": limit
+    }
+    
     with db_engine.connect() as conn:
         result = conn.execute(text(query), params)
         return [dict(row) for row in result]
+
+def get_price(item_name: str) -> pd.DataFrame:
+    """Get the unit price for a given item."""
+    try:
+        # Find the item in the paper_supplies list
+        item = next((item for item in paper_supplies if item["item_name"].lower() == item_name.lower()), None)
+        if item:
+            return pd.DataFrame({"unit_price": [item["unit_price"]]})
+        return pd.DataFrame()
+    except Exception as e:
+        logger.error(f"Error getting price for {item_name}: {e}")
+        return pd.DataFrame()
 
 ########################
 ########################

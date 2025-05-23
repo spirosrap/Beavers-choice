@@ -1,71 +1,7 @@
-scenario_id,request_text,request_date,error,status
-1,"I would like to request the following paper supplies for the ceremony: 
-
-- 200 sheets of A4 glossy paper
-- 100 sheets of heavy cardstock (white)
-- 100 sheets of colored paper (assorted colors)
-
-I need these supplies delivered by April 15, 2025. Thank you.",04/01/25,'list' object has no attribute 'tool_calls',error
-2,"I would like to place an order for 500 sheets of colorful poster paper, 300 roll of streamers, and 200 balloons for the parade. Please deliver the supplies by April 15, 2025. Thank you.",04/03/25,'list' object has no attribute 'tool_calls',error
-3,"I need to order 10,000 sheets of A4 paper, 5,000 sheets of A3 paper, and 500 reams of printer paper. The supplies must be delivered by April 15, 2025, for our upcoming conference. Please confirm the order and delivery schedule.",04/04/25,'list' object has no attribute 'tool_calls',error
-4,"I need 500 sheets of high-quality, recycled cardstock in various colors for our reception, along with 250 sheets of A4 size printer paper. I need the order delivered by April 15, 2025.",04/05/25,'list' object has no attribute 'tool_calls',error
-5,"I would like to place an order for 500 sheets of 8.5""x11"" colored paper, 300 sheets of cardstock in various colors, and 200 rolls of decorative washi tape. I need these supplies delivered by April 15, 2025, for an upcoming party. Thank you!",04/05/25,'list' object has no attribute 'tool_calls',error
-6,"I would like to order 500 sheets of colorful construction paper, 300 sheets of white printer paper, and 200 sheets of cardstock in various colors. We need these supplies delivered by April 15, 2025, for our upcoming assembly.",04/06/25,'list' object has no attribute 'tool_calls',error
-7,"I would like to place a large order for various types of paper supplies for our upcoming exhibition. We need the following items:
-
-- 500 sheets of glossy A4 paper
-- 1000 sheets of matte A3 paper
-- 300 poster boards (24"" x 36"")
-- 200 sheets of heavyweight cardstock
-
-We need these supplies delivered by April 15, 2025. Thank you.",04/07/25,'list' object has no attribute 'tool_calls',error
-8,"I would like to place a large order for the following paper supplies for an upcoming ceremony: 
-
-- 500 sheets of A4 glossy paper 
-- 1000 sheets of A4 matte paper 
-- 2000 sheets of A5 colored paper 
-- 3000 sheets of A4 recycled paper 
-
-Please ensure delivery by April 15, 2025. Thank you.",04/07/25,'list' object has no attribute 'tool_calls',error
-9,"I would like to place an order for the following paper supplies for the reception: 
-
-- 200 sheets of A4 white printer paper
-- 100 sheets of A3 glossy paper
-- 50 packets of 100% recycled kraft paper envelopes
-
-I need these supplies delivered by April 10, 2025. Thank you.",04/07/25,'list' object has no attribute 'tool_calls',error
-10,"I would like to place an order for 500 sheets of high-quality glossy paper and 300 sheets of sturdy cardstock for our upcoming show. We need the supplies delivered by April 15, 2025.",04/08/25,'list' object has no attribute 'tool_calls',error
-11,"I would like to order 500 sheets of A3 glossy paper and 300 sheets of A4 matte paper for our exhibition. The supplies are needed by April 15, 2025. Thank you.",04/08/25,'list' object has no attribute 'tool_calls',error
-12,"I would like to order 200 sheets of colorful cardstock, 500 sheets of standard printer paper, and 100 paper napkins for our upcoming party. Please deliver these supplies by April 15, 2025.",04/08/25,'list' object has no attribute 'tool_calls',error
-13,"I would like to order 500 sheets of A4 printing paper and 200 sheets of cardstock for our upcoming gathering. Please deliver the supplies by April 10, 2025.",04/08/25,'list' object has no attribute 'tool_calls',error
-14,"I would like to place a large order for high-quality paper supplies for our upcoming performance. We need 5,000 sheets of A4 paper, 2,000 sheets of poster paper in various colors, and 500 sheets of cardstock. Please deliver these supplies by April 15, 2025. Thank you.",04/09/25,'list' object has no attribute 'tool_calls',error
-15,"I would like to place a large order for high-quality paper supplies for our upcoming demonstration. Please provide the following:
-
-- 10,000 sheets of A4 white paper
-- 5,000 sheets of A3 colored paper (assorted colors)
-- 500 reams of cardboard for signage
-
-I need these supplies delivered by April 15, 2025. Thank you.",04/12/25,'list' object has no attribute 'tool_calls',error
-16,"I would like to place an order for 500 sheets of A4 printer paper, 200 sheets of colorful construction paper, and 100 sheets of poster board. I need these supplies delivered by April 15, 2025, in time for our assembly event.",04/13/25,'list' object has no attribute 'tool_calls',error
-17,"I would like to place a medium order for the following paper supplies for our upcoming reception:
-
-- 1000 sheets of A4 white printer paper
-- 500 sheets of A3 colored paper (assorted colors)
-- 2000 table napkins (white)
-- 1000 paper cups (biodegradable)
-- 500 paper plates (biodegradable)
-
-I need these supplies delivered by April 15, 2025. Thank you.",04/14/25,'list' object has no attribute 'tool_calls',error
-18,"I would like to place a medium order for the following paper supplies for our upcoming ceremony: 500 sheets of high-quality white cardstock, 1000 sheets of standard printing paper, and 200 sheets of colored paper in assorted colors. I need these supplies delivered by April 15, 2025.",04/14/25,'list' object has no attribute 'tool_calls',error
-19,"Dear [Manufacturer's Name],
-
-I would like to place an order for the following paper supplies for our upcoming exhibition:
-
-- 2000 sheets of A4 glossy paper
-- 1500 sheets of A3 matte paper
-- 1000 sheets of cardstock in assorted colors
-
-We need the supplies delivered by April 20, 2025.
-
-Thank you!",04/15/25,'list' object has no attribute 'tool_calls',error
-20,"I would like to place a large order for the following paper supplies for our upcoming concert: 5,000 flyers, 2,000 posters, and 10,000 tickets. We need these items delivered by May 15, 2025, to ensure adequate time for distribution and promotion. Thank you!",04/17/25,'list' object has no attribute 'tool_calls',error
+test_case,job,event,items,expected_status,actual_status,quote_details,total_amount,initial_balance,final_balance,cash_balance_changed,expected_balance_change
+Office use - A4 paper,office manager,office use,"[{'name': 'A4 paper', 'quantity': 1000}]",completed,completed,"[{'item_name': 'A4 paper', 'quantity': 1000, 'unit_price': 0.05, 'item_total': 50.0, 'stock_available': np.int64(3000)}]",50.0,44322.55,44322.55,False,False
+Presentation - A3 paper,presentation manager,presentation,"[{'name': 'A3 paper', 'quantity': 500}]",completed,completed,"[{'item_name': 'A3 paper', 'quantity': 500, 'unit_price': 0, 'item_total': 0, 'stock_available': np.int64(3000)}]",0.0,44322.55,44322.55,False,False
+Conference - Cardstock,conference organizer,conference,"[{'name': 'Cardstock', 'quantity': 1000}]",completed,completed,"[{'item_name': 'Cardstock', 'quantity': 1000, 'unit_price': 0.15, 'item_total': 150.0, 'stock_available': np.int64(3000)}]",150.0,44322.55,44322.55,False,False
+Glossy paper order,designer,marketing,"[{'name': 'Glossy paper', 'quantity': 100}]",completed,completed,"[{'item_name': 'Glossy paper', 'quantity': 100, 'unit_price': 0.2, 'item_total': 20.0, 'stock_available': np.int64(587)}]",20.0,44322.55,44322.55,False,False
+Large order - A4 paper (should fail),bulk buyer,bulk purchase,"[{'name': 'A4 paper', 'quantity': 4000}]",rejected,rejected,[],0.0,44322.55,44322.55,False,False
+Crepe paper - too large (should fail),party planner,party,"[{'name': 'Crepe paper', 'quantity': 10000}]",rejected,rejected,[],0.0,44322.55,44322.55,False,False

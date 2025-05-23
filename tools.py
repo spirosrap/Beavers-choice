@@ -8,16 +8,37 @@ from project_starter import (
     get_supplier_delivery_date,
     get_cash_balance,
     generate_financial_report,
-    search_quote_history
+    search_quote_history,
+    get_price
 )
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+file_handler = logging.FileHandler('debug.log')
+file_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 class CheckStockInput(BaseModel):
     item_name: str
     as_of_date: str
 
 def check_stock(item_name: str, as_of_date: str) -> dict:
-    result = get_stock_level(item_name, as_of_date)
-    return {"stock": int(result["current_stock"].iloc[0])}
+    logger.debug(f"check_stock called with item_name={item_name}, as_of_date={as_of_date}")
+    try:
+        result = get_stock_level(item_name, as_of_date)
+        logger.debug(f"get_stock_level result for {item_name}: {result}")
+        if result.empty:
+            logger.debug(f"No stock information found for {item_name}")
+            return {"error": f"No stock information found for {item_name}"}
+        stock_level = int(result["current_stock"].iloc[0])
+        logger.debug(f"Stock level for {item_name} as of {as_of_date}: {stock_level}")
+        return {"stock": stock_level}
+    except Exception as e:
+        logger.debug(f"Exception in check_stock for {item_name}: {e}")
+        return {"error": f"Error checking stock for {item_name}: {str(e)}"}
 
 check_stock_tool = Tool(
     check_stock,
@@ -29,10 +50,19 @@ class GetItemPriceInput(BaseModel):
     item_name: str
 
 def get_item_price(item_name: str) -> dict:
-    for item in paper_supplies:
-        if item["item_name"].lower() == item_name.lower():
-            return {"unit_price": item["unit_price"]}
-    return {"error": "Item not found"}
+    logger.debug(f"get_item_price called with item_name={item_name}")
+    try:
+        result = get_price(item_name)
+        logger.debug(f"get_price result for {item_name}: {result}")
+        if result.empty:
+            logger.debug(f"No price information found for {item_name}")
+            return {"error": f"No price information found for {item_name}"}
+        unit_price = float(result["unit_price"].iloc[0])
+        logger.debug(f"Unit price for {item_name}: {unit_price}")
+        return {"unit_price": unit_price}
+    except Exception as e:
+        logger.debug(f"Exception in get_item_price for {item_name}: {e}")
+        return {"error": f"Error getting price for {item_name}: {str(e)}"}
 
 get_item_price_tool = Tool(
     get_item_price,
@@ -90,8 +120,11 @@ class GetCashBalanceInput(BaseModel):
     as_of_date: str
 
 def get_cash_balance_tool(as_of_date: str) -> dict:
-    balance = get_cash_balance(as_of_date)
-    return {"cash_balance": balance}
+    try:
+        balance = get_cash_balance(as_of_date)
+        return {"balance": balance}
+    except Exception as e:
+        return {"error": f"Error checking cash balance: {str(e)}"}
 
 get_cash_balance_tool = Tool(
     get_cash_balance_tool,
