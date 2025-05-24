@@ -16,9 +16,18 @@ from tools import (
     get_supplier_delivery_date_tool,
     get_cash_balance_tool,
     generate_financial_report_tool,
-    search_quote_history_tool
+    search_quote_history_tool,
+    check_stock_func,
+    get_item_price_func,
+    create_transaction_tool_func,
+    get_all_inventory_tool_func,
+    get_supplier_delivery_date_tool_func,
+    get_cash_balance_tool_func,
+    generate_financial_report_tool_func,
+    search_quote_history_tool_func
 )
 from datetime import datetime
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +81,10 @@ class OrchestratorAgent(Agent):
             })
             if isinstance(initial_balance_result, dict) and "balance" in initial_balance_result:
                 workflow["initial_cash_balance"] = initial_balance_result["balance"]
+            elif isinstance(initial_balance_result, dict) and "error" in initial_balance_result:
+                workflow["status"] = "failed"
+                workflow["error"] = initial_balance_result["error"]
+                return workflow
             
             # Determine which agents need to be involved
             involved_agents = self._determine_agent_sequence(request)
@@ -114,6 +127,7 @@ class OrchestratorAgent(Agent):
                             workflow["reason"] = "Insufficient stock or business constraints"
                             break
             
+            # Only mark as completed if we haven't failed or been rejected
             if workflow["status"] == "in_progress":
                 workflow["status"] = "completed"
             
@@ -127,6 +141,9 @@ class OrchestratorAgent(Agent):
                 workflow["cash_balance_changed"] = (
                     workflow["initial_cash_balance"] != workflow["final_cash_balance"]
                 )
+            elif isinstance(final_balance_result, dict) and "error" in final_balance_result:
+                # Don't fail the workflow for balance check errors
+                logger.warning(f"Error getting final balance: {final_balance_result['error']}")
             
             self.workflow_history.append(workflow)
             return workflow
@@ -182,12 +199,16 @@ class OrchestratorAgent(Agent):
         try:
             logger.debug(f"Processing request with agent: {agent.__class__.__name__}")
             result = await agent.process(request)
+            # Check if the result contains an error
+            if isinstance(result, dict) and "error" in result:
+                return {"success": False, "error": result["error"]}
             return {"success": True, "data": result}
         except Exception as e:
             logger.error(f"Error executing agent step: {str(e)}", exc_info=True)
             return {"success": False, "error": str(e)}
     
     async def run(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        print(f"Orchestrator run method called with request: {request}")
         """Override the run method to call the local Python function directly."""
         tool_name = request.get("tool")
         if not tool_name:
@@ -195,24 +216,30 @@ class OrchestratorAgent(Agent):
         
         # Map tool names to local functions
         tool_map = {
-            "check_stock": check_stock,
-            "get_item_price": get_item_price,
-            "create_transaction": create_transaction_tool,
-            "get_all_inventory": get_all_inventory_tool,
-            "get_supplier_delivery_date": get_supplier_delivery_date_tool,
-            "get_cash_balance": get_cash_balance_tool,
-            "generate_financial_report": generate_financial_report_tool,
-            "search_quote_history": search_quote_history_tool
+            "check_stock": check_stock_func,
+            "get_item_price": get_item_price_func,
+            "create_transaction": create_transaction_tool_func,
+            "get_all_inventory": get_all_inventory_tool_func,
+            "get_supplier_delivery_date": get_supplier_delivery_date_tool_func,
+            "get_cash_balance": get_cash_balance_tool_func,
+            "generate_financial_report": generate_financial_report_tool_func,
+            "search_quote_history": search_quote_history_tool_func
         }
         
         if tool_name not in tool_map:
             return {"error": f"Unknown tool: {tool_name}"}
         
-        # Call the local function
+        # Filter request to only include arguments the tool function expects
+        func = tool_map[tool_name]
+        sig = inspect.signature(func)
+        filtered_args = {k: v for k, v in request.items() if k in sig.parameters}
         try:
-            result = await tool_map[tool_name](**request)
+            result = await func(**filtered_args)
+            if isinstance(result, dict) and "error" in result:
+                return {"error": result["error"]}
             return result
         except Exception as e:
+            logger.error(f"Error executing tool {tool_name}: {str(e)}", exc_info=True)
             return {"error": f"Error executing tool {tool_name}: {str(e)}"}
     
     system_prompt = (

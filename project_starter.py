@@ -224,57 +224,25 @@ def init_database(db_engine: Engine, seed: int = 137) -> Engine:
         # ----------------------------
         inventory_df = generate_sample_inventory(paper_supplies, seed=seed)
 
-        # Ensure test items have enough stock
-        def ensure_stock(df, item_name, min_stock, unit_price, category):
-            if item_name in df["item_name"].values:
-                df.loc[df["item_name"] == item_name, "current_stock"] = max(df.loc[df["item_name"] == item_name, "current_stock"].iloc[0], min_stock)
-                df.loc[df["item_name"] == item_name, "min_stock_level"] = 50
-            else:
-                # Add the item if not present
-                df = pd.concat([
-                    df,
-                    pd.DataFrame([{
-                        "item_name": item_name,
-                        "category": category,
-                        "unit_price": unit_price,
-                        "current_stock": min_stock,
-                        "min_stock_level": 50
-                    }])
-                ], ignore_index=True)
-            return df
-
-        # Ensure A4 paper, Cardstock, and A3 paper are present with enough stock
-        inventory_df = ensure_stock(inventory_df, "A4 paper", 3000, 0.05, "paper")
-        inventory_df = ensure_stock(inventory_df, "Cardstock", 3000, 0.15, "paper")
-        inventory_df = ensure_stock(inventory_df, "A3 paper", 3000, 0.08, "paper")
-
-        # Seed initial transactions
-        initial_transactions = []
-
-        # Add a starting cash balance via a dummy sales transaction
-        initial_transactions.append({
-            "item_name": "initial_balance",
-            "transaction_type": "sales",
-            "units": 1,
-            "price": 50000.0,
-            "transaction_date": initial_date,
-        })
-
-        # Add one stock order transaction per inventory item
-        for _, item in inventory_df.iterrows():
-            initial_transactions.append({
-                "item_name": item["item_name"],
-                "transaction_type": "stock_orders",
-                "units": item["current_stock"],
-                "price": item["current_stock"] * item["unit_price"],
-                "transaction_date": initial_date,
-            })
-
-        # Commit transactions to database
-        pd.DataFrame(initial_transactions).to_sql("transactions", db_engine, if_exists="append", index=False)
-
-        # Save the inventory reference table
+        # Insert initial inventory records
         inventory_df.to_sql("inventory", db_engine, if_exists="replace", index=False)
+
+        # Insert a 'stock_orders' transaction for each inventory item to reflect initial stock
+        with db_engine.connect() as conn:
+            for _, row in inventory_df.iterrows():
+                conn.execute(
+                    text(
+                        "INSERT INTO transactions (item_name, transaction_type, units, price, transaction_date) "
+                        "VALUES (:item_name, 'stock_orders', :units, :price, :date)"
+                    ),
+                    {
+                        "item_name": row["item_name"],
+                        "units": int(row["current_stock"]),
+                        "price": float(row["current_stock"]) * float(row["unit_price"]),
+                        "date": initial_date,
+                    }
+                )
+            conn.commit()
 
         # --- Ensure A4 paper has at least 5000 units after all other setup ---
         # Check current stock for A4 paper
@@ -286,6 +254,14 @@ def init_database(db_engine: Engine, seed: int = 137) -> Engine:
             create_transaction(
                 "A4 paper", "stock_orders", additional, additional * 0.05, initial_date
             )
+
+        # Debug: Print inventory and transactions for A4 paper
+        print("\nDEBUG: Inventory for A4 paper after initialization:")
+        inv_df = pd.read_sql("SELECT * FROM inventory WHERE LOWER(item_name) = LOWER(:item_name)", db_engine, params={"item_name": "A4 paper"})
+        print(inv_df)
+        print("\nDEBUG: Transactions for A4 paper after initialization:")
+        trans_df = pd.read_sql("SELECT * FROM transactions WHERE LOWER(item_name) = LOWER(:item_name)", db_engine, params={"item_name": "A4 paper"})
+        print(trans_df)
 
         return db_engine
 
@@ -392,22 +368,37 @@ def get_all_inventory(as_of_date: str) -> Dict[str, int]:
 def get_stock_level(item_name: str, as_of_date: Union[str, datetime]) -> pd.DataFrame:
     """
     Retrieve the stock level of a specific item as of a given date.
-
-    This function calculates the net stock by summing all 'stock_orders' and 
-    subtracting all 'sales' transactions for the specified item up to the given date.
-
-    Args:
-        item_name (str): The name of the item to look up.
-        as_of_date (str or datetime): The cutoff date (inclusive) for calculating stock.
-
-    Returns:
-        pd.DataFrame: A single-row DataFrame with columns 'item_name' and 'current_stock'.
     """
+    # Debug logging
+    print(f"DEBUG: get_stock_level called with item_name='{item_name}', as_of_date='{as_of_date}'")
+    
     # Convert date to ISO string format if it's a datetime object
     if isinstance(as_of_date, datetime):
         as_of_date = as_of_date.isoformat()
+    
+    # Ensure we're working with just the date part for comparison
+    as_of_date = as_of_date.split('T')[0]
 
-    # SQL query to compute net stock level for the item
+    # First check if the item exists in inventory (case-insensitive)
+    inventory_query = """
+        SELECT current_stock as initial_stock
+        FROM inventory
+        WHERE LOWER(item_name) = LOWER(:item_name)
+    """
+    inventory_df = pd.read_sql(
+        inventory_query,
+        db_engine,
+        params={"item_name": item_name},
+    )
+
+    # If item doesn't exist in inventory, return empty DataFrame
+    if inventory_df.empty:
+        print(f"DEBUG: Item {item_name} not found in inventory")
+        return pd.DataFrame(columns=["item_name", "current_stock"])
+
+    initial_stock = inventory_df["initial_stock"].iloc[0]
+
+    # SQL query to compute net stock level for the item from transactions (case-insensitive)
     stock_query = """
         SELECT
             item_name,
@@ -415,18 +406,31 @@ def get_stock_level(item_name: str, as_of_date: Union[str, datetime]) -> pd.Data
                 WHEN transaction_type = 'stock_orders' THEN units
                 WHEN transaction_type = 'sales' THEN -units
                 ELSE 0
-            END), 0) AS current_stock
+            END), 0) AS transaction_stock
         FROM transactions
-        WHERE item_name = :item_name
-        AND transaction_date <= :as_of_date
+        WHERE LOWER(item_name) = LOWER(:item_name)
+        AND date(substr(transaction_date, 1, 10)) <= date(:as_of_date)
     """
 
-    # Execute query and return result as a DataFrame
-    return pd.read_sql(
+    # Execute query and get transaction-based stock changes
+    transaction_df = pd.read_sql(
         stock_query,
         db_engine,
         params={"item_name": item_name, "as_of_date": as_of_date},
     )
+
+    # Calculate final stock level by adding initial stock and transaction changes
+    if not transaction_df.empty:
+        transaction_stock = transaction_df["transaction_stock"].iloc[0]
+        current_stock = initial_stock + transaction_stock
+    else:
+        current_stock = initial_stock
+
+    # Return result as a DataFrame
+    return pd.DataFrame({
+        "item_name": [item_name],
+        "current_stock": [current_stock]
+    })
 
 def get_supplier_delivery_date(input_date_str: str, quantity: int) -> str:
     """

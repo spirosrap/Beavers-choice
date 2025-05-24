@@ -6,6 +6,7 @@ from orchestrator import OrchestratorAgent
 from datetime import datetime
 from project_starter import init_database, db_engine
 from config import AgentConfig, SystemConfig, BusinessRule, BusinessRulesConfig
+import numpy as np
 
 # Set up logging
 logging.basicConfig(
@@ -68,6 +69,19 @@ def convert_to_dict(obj):
         return [convert_to_dict(item) for item in obj]
     elif hasattr(obj, '__dict__'):
         return {k: convert_to_dict(v) for k, v in obj.__dict__.items()}
+    return obj
+
+def convert_numpy_types(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
     return obj
 
 async def main():
@@ -134,6 +148,7 @@ async def main():
         logger.debug("Sending sale request to orchestrator")
         sale_result = await orchestrator.coordinate_workflow(sale_request)
         sale_result_dict = convert_to_dict(sale_result)
+        sale_result_dict = convert_numpy_types(sale_result_dict)
         logger.debug(f"Sale request result: {json.dumps(sale_result_dict)}")
         print(json.dumps(sale_result_dict, indent=2))
 

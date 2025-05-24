@@ -14,6 +14,9 @@ from datetime import datetime
 import pandas as pd
 
 def test_tools():
+    # Initialize database first
+    init_database(db_engine)
+    
     # Use the correct date (2025-01-01T00:00:00) for all checks
     test_date = "2025-01-01T00:00:00"
 

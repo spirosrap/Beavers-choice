@@ -1,0 +1,135 @@
+2025-05-24 11:11:16,315 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:11:16.315795
+2025-05-24 11:11:16,316 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:11:16.315795
+2025-05-24 11:11:16,318 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           5000
+2025-05-24 11:11:16,318 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:11:16.315795: 5000
+2025-05-24 11:11:16,319 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:11:16,319 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:11:16,320 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:11:16,322 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:11:16.322026
+2025-05-24 11:11:16,322 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:11:16.322026
+2025-05-24 11:11:16,324 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           5000
+2025-05-24 11:11:16,324 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:11:16.322026: 5000
+2025-05-24 11:11:16,325 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:11:16,325 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:11:16,326 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:11:16,343 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:11:16.343799
+2025-05-24 11:11:16,343 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:11:16.343799
+2025-05-24 11:11:16,346 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           4000
+2025-05-24 11:11:16,346 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:11:16.343799: 4000
+2025-05-24 11:11:16,347 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:11:16,348 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:11:16,348 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:11:27,533 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:11:27.533962
+2025-05-24 11:11:27,534 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:11:27.533962
+2025-05-24 11:11:27,536 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           5000
+2025-05-24 11:11:27,536 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:11:27.533962: 5000
+2025-05-24 11:11:27,537 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:11:27,538 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:11:27,538 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:11:27,540 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:11:27.540373
+2025-05-24 11:11:27,540 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:11:27.540373
+2025-05-24 11:11:27,542 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           5000
+2025-05-24 11:11:27,543 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:11:27.540373: 5000
+2025-05-24 11:11:27,543 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:11:27,544 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:11:27,544 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:11:27,634 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:11:27.634132
+2025-05-24 11:11:27,634 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:11:27.634132
+2025-05-24 11:11:27,639 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           4000
+2025-05-24 11:11:27,639 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:11:27.634132: 4000
+2025-05-24 11:11:27,640 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:11:27,641 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:11:27,641 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:11:27,644 - tools - DEBUG - check_stock_func called with item_name=a4 paper, as_of_date=2025-05-24T11:11:27.644291
+2025-05-24 11:11:27,644 - tools - DEBUG - _check_stock_sync called with item_name=a4 paper, as_of_date=2025-05-24T11:11:27.644291
+2025-05-24 11:11:27,646 - tools - DEBUG - get_stock_level result for a4 paper:   item_name  current_stock
+0  a4 paper           4000
+2025-05-24 11:11:27,646 - tools - DEBUG - Stock level for a4 paper as of 2025-05-24T11:11:27.644291: 4000
+2025-05-24 11:11:27,646 - tools - DEBUG - get_item_price called with item_name=a4 paper
+2025-05-24 11:11:27,647 - tools - DEBUG - get_price result for a4 paper:    unit_price
+0        0.05
+2025-05-24 11:11:27,647 - tools - DEBUG - Unit price for a4 paper: 0.05
+2025-05-24 11:12:38,174 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:12:38.174837
+2025-05-24 11:12:38,175 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:12:38.174837
+2025-05-24 11:12:38,177 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           5000
+2025-05-24 11:12:38,177 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:12:38.174837: 5000
+2025-05-24 11:12:38,177 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:12:38,178 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:12:38,178 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:12:38,180 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:12:38.180932
+2025-05-24 11:12:38,181 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:12:38.180932
+2025-05-24 11:12:38,183 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           5000
+2025-05-24 11:12:38,183 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:12:38.180932: 5000
+2025-05-24 11:12:38,183 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:12:38,184 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:12:38,184 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:12:38,202 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:12:38.202398
+2025-05-24 11:12:38,202 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:12:38.202398
+2025-05-24 11:12:38,204 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           4000
+2025-05-24 11:12:38,204 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:12:38.202398: 4000
+2025-05-24 11:12:38,206 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:12:38,206 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:12:38,206 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:12:38,209 - tools - DEBUG - check_stock_func called with item_name=a4 paper, as_of_date=2025-05-24T11:12:38.209462
+2025-05-24 11:12:38,209 - tools - DEBUG - _check_stock_sync called with item_name=a4 paper, as_of_date=2025-05-24T11:12:38.209462
+2025-05-24 11:12:38,211 - tools - DEBUG - get_stock_level result for a4 paper:   item_name  current_stock
+0  a4 paper           4000
+2025-05-24 11:12:38,211 - tools - DEBUG - Stock level for a4 paper as of 2025-05-24T11:12:38.209462: 4000
+2025-05-24 11:12:38,211 - tools - DEBUG - get_item_price called with item_name=a4 paper
+2025-05-24 11:12:38,212 - tools - DEBUG - get_price result for a4 paper:    unit_price
+0        0.05
+2025-05-24 11:12:38,212 - tools - DEBUG - Unit price for a4 paper: 0.05
+2025-05-24 11:13:03,276 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:13:03.276089
+2025-05-24 11:13:03,276 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:13:03.276089
+2025-05-24 11:13:03,279 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           5000
+2025-05-24 11:13:03,279 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:13:03.276089: 5000
+2025-05-24 11:13:03,279 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:13:03,280 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:13:03,280 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:13:03,282 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:13:03.282709
+2025-05-24 11:13:03,282 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:13:03.282709
+2025-05-24 11:13:03,285 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           5000
+2025-05-24 11:13:03,285 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:13:03.282709: 5000
+2025-05-24 11:13:03,285 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:13:03,286 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:13:03,286 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:13:03,304 - tools - DEBUG - check_stock_func called with item_name=A4 paper, as_of_date=2025-05-24T11:13:03.304627
+2025-05-24 11:13:03,304 - tools - DEBUG - _check_stock_sync called with item_name=A4 paper, as_of_date=2025-05-24T11:13:03.304627
+2025-05-24 11:13:03,307 - tools - DEBUG - get_stock_level result for A4 paper:   item_name  current_stock
+0  A4 paper           4000
+2025-05-24 11:13:03,307 - tools - DEBUG - Stock level for A4 paper as of 2025-05-24T11:13:03.304627: 4000
+2025-05-24 11:13:03,308 - tools - DEBUG - get_item_price called with item_name=A4 paper
+2025-05-24 11:13:03,309 - tools - DEBUG - get_price result for A4 paper:    unit_price
+0        0.05
+2025-05-24 11:13:03,309 - tools - DEBUG - Unit price for A4 paper: 0.05
+2025-05-24 11:13:03,312 - tools - DEBUG - check_stock_func called with item_name=a4 paper, as_of_date=2025-05-24T11:13:03.312555
+2025-05-24 11:13:03,312 - tools - DEBUG - _check_stock_sync called with item_name=a4 paper, as_of_date=2025-05-24T11:13:03.312555
+2025-05-24 11:13:03,315 - tools - DEBUG - get_stock_level result for a4 paper:   item_name  current_stock
+0  a4 paper           4000
+2025-05-24 11:13:03,315 - tools - DEBUG - Stock level for a4 paper as of 2025-05-24T11:13:03.312555: 4000
+2025-05-24 11:13:03,315 - tools - DEBUG - get_item_price called with item_name=a4 paper
+2025-05-24 11:13:03,317 - tools - DEBUG - get_price result for a4 paper:    unit_price
+0        0.05
+2025-05-24 11:13:03,317 - tools - DEBUG - Unit price for a4 paper: 0.05

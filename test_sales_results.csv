@@ -1,5 +1,5 @@
 test_case,items,expected_status,actual_status,transaction_ids,initial_balance,final_balance,cash_balance_changed,expected_balance_change
-Sale - A4 paper,"[{'name': 'A4 paper', 'quantity': 100}]",completed,completed,[21],44322.55,44327.55,True,True
-Sale - Cardstock,"[{'name': 'Cardstock', 'quantity': 200}]",completed,completed,[22],44327.55,44357.55,True,True
-Sale - A3 paper,"[{'name': 'A3 paper', 'quantity': 150}]",completed,completed,[23],44357.55,44357.55,False,True
-Sale - Glossy paper (insufficient stock),"[{'name': 'Glossy paper', 'quantity': 10000}]",rejected,rejected,,44357.55,44357.55,False,False
+Sale - A4 paper,"[{'name': 'A4 paper', 'quantity': 100}]",completed,completed,[20],-5176.7,-5171.7,True,True
+Sale - Cardstock,"[{'name': 'Cardstock', 'quantity': 200}]",completed,completed,[21],-5171.7,-5141.7,True,True
+Sale - A3 paper,"[{'name': 'A3 paper', 'quantity': 150}]",completed,rejected,,-5141.7,-5141.7,False,True
+Sale - Glossy paper (insufficient stock),"[{'name': 'Glossy paper', 'quantity': 10000}]",rejected,rejected,,-5141.7,-5141.7,False,False

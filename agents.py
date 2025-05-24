@@ -9,14 +9,21 @@ from tools import (
     get_cash_balance_tool,
     generate_financial_report_tool,
     search_quote_history_tool,
-    check_stock,
-    get_item_price
+    check_stock_func,
+    get_item_price_func,
+    create_transaction_tool_func,
+    get_all_inventory_tool_func,
+    get_supplier_delivery_date_tool_func,
+    get_cash_balance_tool_func,
+    generate_financial_report_tool_func,
+    search_quote_history_tool_func
 )
 from datetime import datetime
 import asyncio
 import logging
 from message_queue import Message, MessageQueue, AgentError, ErrorType
 from config import AgentConfig, SystemConfig
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +66,7 @@ class BaseAgent(Agent):
     
     async def process(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Process a request using the agent's LLM and tools."""
+        print(f"{self.__class__.__name__} process method called with request: {request}")
         try:
             # Validate request
             if not self._validate_request(request):
@@ -78,6 +86,7 @@ class BaseAgent(Agent):
             
             # Process the request
             result = await self.run(request)
+            print(f"{self.__class__.__name__} run result: {result}")
             
             # Validate result
             if not self._validate_result(result):
@@ -109,28 +118,35 @@ class BaseAgent(Agent):
 
     async def run(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Override the run method to call the local Python function directly."""
+        print(f"{self.__class__.__name__} run method called with request: {request}")
         tool_name = request.get("tool")
         if not tool_name:
             return {"error": "No tool specified in request"}
         
         # Map tool names to local functions
         tool_map = {
-            "check_stock": check_stock,
-            "get_item_price": get_item_price,
-            "create_transaction": create_transaction_tool,
-            "get_all_inventory": get_all_inventory_tool,
-            "get_supplier_delivery_date": get_supplier_delivery_date_tool,
-            "get_cash_balance": get_cash_balance_tool,
-            "generate_financial_report": generate_financial_report_tool,
-            "search_quote_history": search_quote_history_tool
+            "check_stock": check_stock_func,
+            "get_item_price": get_item_price_func,
+            "create_transaction": create_transaction_tool_func,
+            "get_all_inventory": get_all_inventory_tool_func,
+            "get_supplier_delivery_date": get_supplier_delivery_date_tool_func,
+            "get_cash_balance": get_cash_balance_tool_func,
+            "generate_financial_report": generate_financial_report_tool_func,
+            "search_quote_history": search_quote_history_tool_func
         }
         
         if tool_name not in tool_map:
             return {"error": f"Unknown tool: {tool_name}"}
         
+        # Filter request to only include arguments the tool function expects
+        func = tool_map[tool_name]
+        sig = inspect.signature(func)
+        filtered_args = {k: v for k, v in request.items() if k in sig.parameters}
+        
         # Call the local function
         try:
-            result = await tool_map[tool_name](**request)
+            result = await func(**filtered_args)
+            print(f"{self.__class__.__name__} tool {tool_name} result: {result}")
             return result
         except Exception as e:
             return {"error": f"Error executing tool {tool_name}: {str(e)}"}
